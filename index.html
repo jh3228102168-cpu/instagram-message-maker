@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#ff5e78" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style.css" />
+    <title>문장, 사진이 되다</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header>
+        <span class="eyebrow">INSTAGRAM MAKER</span>
+        <h1>문장, 사진이 되다</h1>
+        <p>사진과 문장을 올리면 바로 게시할 수 있는 인스타 이미지를 만들어요.</p>
+      </header>
+
+      <section class="card" aria-labelledby="photo-title">
+        <div class="section-heading"><span class="step">01</span><h2 id="photo-title">사진 업로드</h2></div>
+        <label class="drop-zone" for="photos">
+          <input id="photos" type="file" accept="image/*" multiple />
+          <span class="upload-icon">＋</span>
+          <strong>사진을 선택하세요</strong>
+          <small>여러 장 선택 가능 · JPG, PNG, HEIC</small>
+        </label>
+        <div id="photo-count" class="hint">아직 선택한 사진이 없어요.</div>
+        <div id="photo-list" class="photo-list" aria-live="polite"></div>
+      </section>
+
+      <section class="card" aria-labelledby="message-title">
+        <div class="section-heading"><span class="step">02</span><h2 id="message-title">메시지 입력</h2></div>
+        <label class="sr-only" for="messages">한 줄에 하나씩 메시지 입력</label>
+        <textarea id="messages" rows="6" placeholder="한 줄에 메시지 하나씩 입력하세요.&#10;&#10;오늘의 작은 행복&#10;햇살이 좋았던 오후"></textarea>
+        <p class="hint">줄바꿈마다 별도의 게시물이 만들어집니다.</p>
+      </section>
+
+      <section class="card options" aria-labelledby="style-title">
+        <div class="section-heading"><span class="step">03</span><h2 id="style-title">디자인</h2></div>
+        <div class="segmented" role="group" aria-label="글자 정렬">
+          <button class="active" data-align="center">가운데</button><button data-align="bottom">아래</button><button data-align="top">위</button>
+        </div>
+        <label class="toggle"><input id="shade" type="checkbox" checked /><span></span> 글자가 잘 보이도록 배경 어둡게</label>
+      </section>
+
+      <button id="create" class="create-button">인스타 이미지 만들기 <span>→</span></button>
+      <p id="notice" class="notice" role="alert"></p>
+
+      <section id="results" class="results" hidden aria-labelledby="result-title">
+        <div class="result-head"><div><span class="eyebrow">READY TO POST</span><h2 id="result-title">완성된 이미지</h2></div><button id="download-all" class="outline">전체 저장</button></div>
+        <div id="result-list"></div>
+      </section>
+    </main>
+    <template id="result-template">
+      <article class="result-card">
+        <img class="result-image" alt="완성된 인스타 게시물 미리보기" />
+        <div class="result-info"><p class="message-preview"></p><label>추천 사진 <select class="image-picker"></select></label><button class="download-button">이미지 저장</button></div>
+      </article>
+    </template>
+    <script src="app.js"></script>
+  </body>
+</html>
