@@ -56,6 +56,7 @@ function wrapText(context, text, maxWidth) {
 }
 
 async function renderPost(message, photoIndex) {
+  await document.fonts.load('400 74px "Gowun Dodum"');
   const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1350;
   const context = canvas.getContext("2d"); const photo = state.photos[photoIndex];
   const image = await loadImage(photo.url); drawCover(context, image, canvas.width, canvas.height);
@@ -64,11 +65,11 @@ async function renderPost(message, photoIndex) {
     gradient.addColorStop(0, "rgba(0,0,0,.12)"); gradient.addColorStop(.5, "rgba(0,0,0,.04)"); gradient.addColorStop(1, "rgba(0,0,0,.65)");
     context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height);
   }
-  let fontSize = 74; context.font = `700 ${fontSize}px Arial, sans-serif`;
-  while (wrapText(context, message, 850).length > 4 && fontSize > 38) { fontSize -= 4; context.font = `700 ${fontSize}px Arial, sans-serif`; }
+  let fontSize = 74; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`;
+  while (wrapText(context, message, 850).length > 4 && fontSize > 38) { fontSize -= 4; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`; }
   const lines = wrapText(context, message, 850); const lineHeight = fontSize * 1.28;
   const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - lines.length * lineHeight : 675 - (lines.length - 1) * lineHeight / 2;
-  context.textAlign = "center"; context.textBaseline = "top"; context.font = `700 ${fontSize}px Arial, sans-serif`;
+  context.textAlign = "center"; context.textBaseline = "top"; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`;
   context.fillStyle = "rgba(0,0,0,.26)"; lines.forEach((line, i) => context.fillText(line, 544, y + i * lineHeight + 4));
   context.fillStyle = "#fff"; lines.forEach((line, i) => context.fillText(line, 540, y + i * lineHeight));
   return canvas.toDataURL("image/jpeg", .93);
@@ -88,8 +89,10 @@ async function makeResult(message, suggestedIndex) {
 function download(dataUrl, message) { const a = document.createElement("a"); a.href = dataUrl; a.download = `instagram-${message.slice(0, 18).replace(/[\\/:*?\"<>|]/g, "") || "post"}.jpg`; a.click(); }
 
 $("#create").addEventListener("click", async () => {
-  const messages = messagesInput.value.split("\n").map((item) => item.trim()).filter(Boolean);
-  if (!state.photos.length || !messages.length) { notice.textContent = "사진과 메시지를 모두 넣어 주세요."; return; }
+  const rawMessages = messagesInput.value.trim();
+  const messages = [...rawMessages.matchAll(/(?:^|\n)\s*\d+\.\s*([\s\S]*?)(?=(?:\n\s*\d+\.\s*)|$)/g)].map((match) => match[1].trim()).filter(Boolean);
+  if (!state.photos.length || !rawMessages) { notice.textContent = "사진과 메시지를 모두 넣어 주세요."; return; }
+  if (!messages.length) { notice.textContent = "메시지를 1. 문장 · 2. 문장 형식으로 입력해 주세요."; return; }
   notice.textContent = "사진을 고르고 이미지를 만들고 있어요…"; $("#create").disabled = true;
   $("#result-list").replaceChildren();
   for (const message of messages) {
