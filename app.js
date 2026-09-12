@@ -45,16 +45,6 @@ function drawCover(context, image, width, height) {
   context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
-function wrapText(context, text, maxWidth) {
-  const words = text.split(/\s+/); const lines = []; let line = "";
-  words.forEach((word) => {
-    const proposal = line ? `${line} ${word}` : word;
-    if (context.measureText(proposal).width > maxWidth && line) { lines.push(line); line = word; } else line = proposal;
-  });
-  if (line) lines.push(line);
-  return lines;
-}
-
 async function renderPost(message, photoIndex) {
   await document.fonts.load('400 74px "Gowun Dodum"');
   const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1350;
@@ -65,24 +55,30 @@ async function renderPost(message, photoIndex) {
     gradient.addColorStop(0, "rgba(0,0,0,.12)"); gradient.addColorStop(.5, "rgba(0,0,0,.04)"); gradient.addColorStop(1, "rgba(0,0,0,.65)");
     context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height);
   }
-  let fontSize = 74; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`;
-  while (wrapText(context, message, 850).length > 4 && fontSize > 38) { fontSize -= 4; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`; }
-  const lines = wrapText(context, message, 850); const lineHeight = fontSize * 1.28;
-  const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - lines.length * lineHeight : 675 - (lines.length - 1) * lineHeight / 2;
-  context.textAlign = "center"; context.textBaseline = "top"; context.font = `400 ${fontSize}px "Gowun Dodum", sans-serif`;
-  context.fillStyle = "rgba(0,0,0,.26)"; lines.forEach((line, i) => context.fillText(line, 544, y + i * lineHeight + 4));
-  context.fillStyle = "#fff"; lines.forEach((line, i) => context.fillText(line, 540, y + i * lineHeight));
+  const lines = message.split(/\r?\n/); let fontSize = 74;
+  context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
+  while (Math.max(...lines.map((line) => context.measureText(line).width)) > 840 && fontSize > 26) {
+    fontSize -= 2; context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
+  }
+  const lineHeight = fontSize * 1.42;
+  const textHeight = lines.length * lineHeight;
+  const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - textHeight : 675 - textHeight / 2;
+  const widestLine = Math.max(...lines.map((line) => context.measureText(line).width));
+  const boxX = 82, boxY = y - 42, boxWidth = Math.min(widestLine + 96, 916), boxHeight = textHeight + 84;
+  context.fillStyle = "rgba(42,42,45,.84)"; context.fillRect(boxX, boxY, boxWidth, boxHeight);
+  context.textAlign = "left"; context.textBaseline = "top"; context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
+  context.fillStyle = "#fff"; lines.forEach((line, i) => context.fillText(line, 130, y + i * lineHeight));
   return canvas.toDataURL("image/jpeg", .93);
 }
 
-async function makeResult(message, suggestedIndex) {
+async function makeResult(post, suggestedIndex) {
   const fragment = $("#result-template").content.cloneNode(true); const card = fragment.querySelector("article");
   const preview = fragment.querySelector(".result-image"); const picker = fragment.querySelector(".image-picker");
-  fragment.querySelector(".message-preview").textContent = message;
+  fragment.querySelector(".message-preview").textContent = post.display;
   state.photos.forEach((photo, index) => picker.add(new Option(`사진 ${index + 1} · ${photo.name}`, index, index === suggestedIndex, index === suggestedIndex)));
-  preview.src = await renderPost(message, suggestedIndex);
-  picker.addEventListener("change", async () => { preview.src = await renderPost(message, Number(picker.value)); });
-  fragment.querySelector(".download-button").addEventListener("click", () => download(preview.src, message));
+  preview.src = await renderPost(post.display, suggestedIndex);
+  picker.addEventListener("change", async () => { preview.src = await renderPost(post.display, Number(picker.value)); });
+  fragment.querySelector(".download-button").addEventListener("click", () => download(preview.src, post.display));
   $("#result-list").append(fragment);
 }
 
@@ -90,14 +86,19 @@ function download(dataUrl, message) { const a = document.createElement("a"); a.h
 
 $("#create").addEventListener("click", async () => {
   const rawMessages = messagesInput.value.trim();
-  const messages = [...rawMessages.matchAll(/(?:^|\n)\s*\d+\.\s*([\s\S]*?)(?=(?:\n\s*\d+\.\s*)|$)/g)].map((match) => match[1].trim()).filter(Boolean);
+  const messages = [...rawMessages.matchAll(/(?:^|\n)\s*(\d+)\.\s*([\s\S]*?)(?=(?:\n\s*\d+\.\s*)|$)/g)]
+    .map((match) => ({ number: match[1], content: match[2].trim(), display: `${match[1]}. ${match[2].trim()}` }))
+    .filter((post) => post.content);
   if (!state.photos.length || !rawMessages) { notice.textContent = "사진과 메시지를 모두 넣어 주세요."; return; }
   if (!messages.length) { notice.textContent = "메시지를 1. 문장 · 2. 문장 형식으로 입력해 주세요."; return; }
+  if (state.photos.length < messages.length) { notice.textContent = "같은 사진을 쓰지 않으려면 메시지 수 이상으로 사진을 올려 주세요."; return; }
   notice.textContent = "사진을 고르고 이미지를 만들고 있어요…"; $("#create").disabled = true;
   $("#result-list").replaceChildren();
-  for (const message of messages) {
-    const recommended = [...state.photos].sort((a, b) => scorePhoto(message, b) - scorePhoto(message, a))[0];
-    await makeResult(message, recommended.index);
+  const remainingPhotos = [...state.photos];
+  for (const post of messages) {
+    const recommended = [...remainingPhotos].sort((a, b) => scorePhoto(post.content, b) - scorePhoto(post.content, a))[0];
+    remainingPhotos.splice(remainingPhotos.indexOf(recommended), 1);
+    await makeResult(post, recommended.index);
   }
   $("#results").hidden = false; $("#create").disabled = false; notice.textContent = `${messages.length}개의 게시물을 만들었어요.`;
   $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
