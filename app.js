@@ -50,9 +50,13 @@ async function renderPost(message, photoIndex) {
   const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1350;
   const context = canvas.getContext("2d"); const photo = state.photos[photoIndex];
   const image = await loadImage(photo.url); drawCover(context, image, canvas.width, canvas.height);
-  // 입력한 번호와 줄바꿈은 그대로 유지하고, 예시와 같은 크기로 고정합니다.
-  const lines = message.split(/\r?\n/); const fontSize = 74;
+  // 입력한 번호와 줄바꿈은 그대로 유지하되, 긴 줄만 화면 폭에 맞게 축소합니다.
+  const lines = message.split(/\r?\n/); let fontSize = 74;
   context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
+  while (Math.max(...lines.map((line) => context.measureText(line).width)) > 840 && fontSize > 26) {
+    fontSize -= 2;
+    context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
+  }
   const lineHeight = fontSize * 1.42;
   const textHeight = lines.length * lineHeight;
   const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - textHeight : 675 - textHeight / 2;
@@ -111,4 +115,16 @@ $("#create").addEventListener("click", async () => {
   $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-$("#download-all").addEventListener("click", () => document.querySelectorAll(".result-image").forEach((image, index) => setTimeout(() => download(image.src, `instagram-${index + 1}`), index * 350)));
+$("#download-all").addEventListener("click", async () => {
+  const images = [...document.querySelectorAll(".result-image")];
+  const files = await Promise.all(images.map(async (image, index) => {
+    const message = image.closest(".result-card").querySelector(".message-preview").textContent;
+    return new File([await (await fetch(image.src)).blob()], fileName(`${index + 1}-${message}`), { type: "image/jpeg" });
+  }));
+  if (navigator.canShare?.({ files })) {
+    await navigator.share({ files, title: "인스타 이미지" });
+    notice.textContent = "공유 메뉴에서 ‘이미지 저장’을 선택하면 모든 이미지가 사진 앱에 저장됩니다.";
+  } else {
+    notice.textContent = "이 브라우저에서는 여러 장을 한 번에 저장할 수 없습니다. 각 이미지의 ‘사진에 저장하기’를 이용해 주세요.";
+  }
+});
