@@ -55,17 +55,15 @@ async function renderPost(message, photoIndex) {
     gradient.addColorStop(0, "rgba(0,0,0,.12)"); gradient.addColorStop(.5, "rgba(0,0,0,.04)"); gradient.addColorStop(1, "rgba(0,0,0,.65)");
     context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height);
   }
-  const lines = message.split(/\r?\n/); let fontSize = 74;
+  // 입력한 번호와 줄바꿈은 그대로 유지하고, 예시와 같은 크기로 고정합니다.
+  const lines = message.split(/\r?\n/); const fontSize = 74;
   context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
-  while (Math.max(...lines.map((line) => context.measureText(line).width)) > 840 && fontSize > 26) {
-    fontSize -= 2; context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
-  }
   const lineHeight = fontSize * 1.42;
   const textHeight = lines.length * lineHeight;
   const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - textHeight : 675 - textHeight / 2;
   const widestLine = Math.max(...lines.map((line) => context.measureText(line).width));
   const boxX = 82, boxY = y - 42, boxWidth = Math.min(widestLine + 96, 916), boxHeight = textHeight + 84;
-  context.fillStyle = "rgba(42,42,45,.84)"; context.fillRect(boxX, boxY, boxWidth, boxHeight);
+  context.fillStyle = "rgba(42,42,45,.62)"; context.fillRect(boxX, boxY, boxWidth, boxHeight);
   context.textAlign = "left"; context.textBaseline = "top"; context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
   context.fillStyle = "#fff"; lines.forEach((line, i) => context.fillText(line, 130, y + i * lineHeight));
   return canvas.toDataURL("image/jpeg", .93);
