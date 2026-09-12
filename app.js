@@ -50,20 +50,14 @@ async function renderPost(message, photoIndex) {
   const canvas = document.createElement("canvas"); canvas.width = 1080; canvas.height = 1350;
   const context = canvas.getContext("2d"); const photo = state.photos[photoIndex];
   const image = await loadImage(photo.url); drawCover(context, image, canvas.width, canvas.height);
-  if ($("#shade").checked) {
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "rgba(0,0,0,.12)"); gradient.addColorStop(.5, "rgba(0,0,0,.04)"); gradient.addColorStop(1, "rgba(0,0,0,.65)");
-    context.fillStyle = gradient; context.fillRect(0, 0, canvas.width, canvas.height);
-  }
   // 입력한 번호와 줄바꿈은 그대로 유지하고, 예시와 같은 크기로 고정합니다.
   const lines = message.split(/\r?\n/); const fontSize = 74;
   context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
   const lineHeight = fontSize * 1.42;
   const textHeight = lines.length * lineHeight;
   const y = state.align === "top" ? 210 : state.align === "bottom" ? 1130 - textHeight : 675 - textHeight / 2;
-  const widestLine = Math.max(...lines.map((line) => context.measureText(line).width));
-  const boxX = 82, boxY = y - 42, boxWidth = Math.min(widestLine + 96, 916), boxHeight = textHeight + 84;
-  context.fillStyle = "rgba(42,42,45,.62)"; context.fillRect(boxX, boxY, boxWidth, boxHeight);
+  const boxX = 82, boxY = y - 42, boxWidth = 916, boxHeight = textHeight + 84;
+  context.fillStyle = "rgba(42,42,45,.38)"; context.fillRect(boxX, boxY, boxWidth, boxHeight);
   context.textAlign = "left"; context.textBaseline = "top"; context.font = `700 ${fontSize}px "Gowun Dodum", sans-serif`;
   context.fillStyle = "#fff"; lines.forEach((line, i) => context.fillText(line, 130, y + i * lineHeight));
   return canvas.toDataURL("image/jpeg", .93);
@@ -76,16 +70,31 @@ async function makeResult(post, suggestedIndex) {
   state.photos.forEach((photo, index) => picker.add(new Option(`사진 ${index + 1} · ${photo.name}`, index, index === suggestedIndex, index === suggestedIndex)));
   preview.src = await renderPost(post.display, suggestedIndex);
   picker.addEventListener("change", async () => { preview.src = await renderPost(post.display, Number(picker.value)); });
-  fragment.querySelector(".download-button").addEventListener("click", () => download(preview.src, post.display));
+  fragment.querySelector(".download-button").addEventListener("click", async () => {
+    try { await saveToPhotos(preview.src, post.display); } catch (error) {
+      if (error.name !== "AbortError") { download(preview.src, post.display); notice.textContent = "사진 저장을 열 수 없어 다운로드 폴더에 저장했습니다."; }
+    }
+  });
   $("#result-list").append(fragment);
 }
 
-function download(dataUrl, message) { const a = document.createElement("a"); a.href = dataUrl; a.download = `instagram-${message.slice(0, 18).replace(/[\\/:*?\"<>|]/g, "") || "post"}.jpg`; a.click(); }
+function fileName(message) { return `instagram-${message.slice(0, 18).replace(/[\\/:*?\"<>|]/g, "") || "post"}.jpg`; }
+function download(dataUrl, message) { const a = document.createElement("a"); a.href = dataUrl; a.download = fileName(message); a.click(); }
+async function saveToPhotos(dataUrl, message) {
+  const file = new File([await (await fetch(dataUrl)).blob()], fileName(message), { type: "image/jpeg" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: "인스타 이미지" });
+    notice.textContent = "공유 메뉴에서 ‘이미지 저장’을 선택하면 사진 앱에 저장됩니다.";
+  } else {
+    download(dataUrl, message);
+    notice.textContent = "이 브라우저에서는 다운로드 폴더에 저장됩니다.";
+  }
+}
 
 $("#create").addEventListener("click", async () => {
   const rawMessages = messagesInput.value.trim();
-  const messages = [...rawMessages.matchAll(/(?:^|\n)\s*(\d+)\.\s*([\s\S]*?)(?=(?:\n\s*\d+\.\s*)|$)/g)]
-    .map((match) => ({ number: match[1], content: match[2].trim(), display: `${match[1]}. ${match[2].trim()}` }))
+  const messages = [...rawMessages.matchAll(/(?:^|\n)[ \t]*(\d+)\.([\s\S]*?)(?=\n[ \t]*\d+\.|$)/g)]
+    .map((match) => ({ number: match[1], content: match[2].trim(), display: `${match[1]}.${match[2]}` }))
     .filter((post) => post.content);
   if (!state.photos.length || !rawMessages) { notice.textContent = "사진과 메시지를 모두 넣어 주세요."; return; }
   if (!messages.length) { notice.textContent = "메시지를 1. 문장 · 2. 문장 형식으로 입력해 주세요."; return; }
